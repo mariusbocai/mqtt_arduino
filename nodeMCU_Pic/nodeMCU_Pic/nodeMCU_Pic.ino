@@ -48,7 +48,7 @@ unsigned char pumpState;
 int pumpPin = 4;
 int pumpPin1 = 0;
 const int analogInPin = A0;
-int buttonPin = 6;
+int buttonPin = 12;
 unsigned char transitionToHigh, transitionToLow;
 bool buttonState;
 
