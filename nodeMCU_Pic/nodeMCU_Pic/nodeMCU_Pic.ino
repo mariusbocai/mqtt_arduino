@@ -48,14 +48,18 @@ unsigned char pumpState;
 int pumpPin = 4;
 int pumpPin1 = 0;
 const int analogInPin = A0;
+int buttonPin = 6;
+unsigned char transitionToHigh, transitionToLow;
+bool buttonState;
 
 unsigned short Pic_getCurrent(void)
 {
   unsigned short sensorValue, maxValue;
   int i;
+  float x;
 
   sensorValue = maxValue = 0;
-  for (i=0; i<100;i++)
+  for (i=0; i<20;i++)
   {
     sensorValue = analogRead(analogInPin);
     if (sensorValue>maxValue)
@@ -64,7 +68,8 @@ unsigned short Pic_getCurrent(void)
     }
     delay(1);
   }
-  return maxValue;
+  x=((float)(maxValue*3300)/1023);
+  return ((unsigned short)x);
 }
 
 void setup_wifi() {
@@ -178,7 +183,7 @@ void reconnect() {
     if (client.connect(clientId.c_str())) {
       Serial.println("connected");
       // Once connected, publish an announcement...
-      client.publish("/Pump/Status", "Modul Control pompa pornit");
+      client.publish("/Pump/Status", "Reconectat");
       // ... and resubscribe
       client.subscribe("/Pump/Control");
       client.subscribe("/Pump/Query");
@@ -196,6 +201,7 @@ void reconnect() {
 void setup() {
   pinMode(pumpPin, OUTPUT);     // Initialize the BUILTIN_LED pin as an output
   pinMode(pumpPin1, OUTPUT);
+  pinMode(buttonPin, INPUT);
   digitalWrite(pumpPin, HIGH); //set pump OFF
   digitalWrite(pumpPin1, HIGH);
   pinMode(BUILTIN_LED, OUTPUT);
@@ -207,8 +213,38 @@ void setup() {
   onTime = 0;
   stopTime = 0;
   pumpState = 0;
+  transitionToHigh=0;
+  transitionToLow=0;
+  buttonState= digitalRead(buttonPin);
 }
 
+void checkButton()
+{
+  if(buttonState == LOW)
+  {
+    if(digitalRead(buttonPin) == HIGH)
+    {
+      delay(1000);
+      if(digitalRead(buttonPin) == HIGH)
+      {
+        buttonState = HIGH;
+        transitionToHigh = true;
+      }
+    }
+  }
+  else
+  {
+    if(digitalRead(buttonPin) == LOW)
+    {
+      delay(1000);
+      if(digitalRead(buttonPin) == LOW)
+      {
+        buttonState = LOW;
+        transitionToLow = true;
+      }
+    }
+  }
+}
 void loop() {
 
   if (!client.connected()) {
@@ -225,6 +261,53 @@ void loop() {
     pumpState = 0;
     setup_wifi();
   }
+
+  checkButton();
+  if(transitionToHigh == true)
+  {
+    transitionToHigh = false;
+    if(pumpState == 0)
+    {
+      /*Start countdown timer*/
+      onTime = millis();
+      stopTime = onTime + 1800000;
+      if(stopTime < onTime)
+      {
+        /*Counter Overflow, stop pump as countdown timer is broken*/
+        digitalWrite(pumpPin, HIGH);
+        digitalWrite(pumpPin1, HIGH);
+        client.publish("/Pump/Status", "0Pompa Oprita");
+        Serial.println("0Pompa Oprita");
+        onTime = 0;
+        stopTime = 0;
+        pumpState = 0;
+      }
+      else
+      {
+        /*Switch pump on*/
+        digitalWrite(pumpPin, LOW);
+        digitalWrite(pumpPin1, LOW);
+        client.publish("/Pump/Status", "1Pompa Pornita");
+        Serial.println("1Pompa Pornita");
+        pumpState = 1;
+      }
+    }
+  }
+  else if(transitionToLow == true)
+  {
+    transitionToLow = false;
+    if(pumpState == 1)
+    {
+      digitalWrite(pumpPin, HIGH);
+      digitalWrite(pumpPin1, HIGH);
+      client.publish("/Pump/Status", "0Pompa Oprita");
+      Serial.println("0Pompa Oprita");
+      onTime = 0;
+      stopTime = 0;
+      pumpState = 0;
+    }
+  }
+  
   if(pumpState == 1)
   {
     unsigned long now = millis();
