@@ -45,8 +45,10 @@ unsigned long wdtTimeVal = 0;
 
 //const char* ssid = "GardeNet";
 //const char* password = "SolariileMaAn";
-const char* ssid = "GardeNet1";
-const char* password = "SolariileMaAn1";
+//const char* ssid = "GardeNet1";
+//const char* password = "SolariileMaAn1";
+const char* ssid = "GardeNet2";
+const char* password = "SolariileMaAn2";
 //const char* ssid = "Tenda_2EC6E0";
 //const char* password = "gamechair955";
 const char* mqtt_server = "192.168.0.79";
@@ -55,7 +57,7 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 unsigned long stopTime = 0;
 unsigned long onTime = 0;
-unsigned char pumpState;
+unsigned char pumpState,pumpStartedByButton;
 int pumpPin = 4;
 int pumpPin1 = 0;
 const int analogInPin = A0;
@@ -70,7 +72,7 @@ unsigned short Pic_getCurrent(void)
   float x;
 
   sensorValue = maxValue = 0;
-  for (i=0; i<20;i++)
+  for (i=0; i<200;i++)
   {
     sensorValue = analogRead(analogInPin);
     if (sensorValue>maxValue)
@@ -271,7 +273,7 @@ void loop() {
     reconnect();
   }
   client.loop();
-  if (WiFi.status() != WL_CONNECTED)
+  if ((WiFi.status() != WL_CONNECTED) && (pumpStartedByButton == 0))
   {
     /*If there is no WiFi available, switch off the pump*/
     digitalWrite(pumpPin, HIGH); //set pump OFF
@@ -316,6 +318,7 @@ void loop() {
         onTime = 0;
         stopTime = 0;
         pumpState = 0;
+        pumpStartedByButton = 0;
       }
       else
       {
@@ -325,12 +328,14 @@ void loop() {
         client.publish("/Pump/Status", "1Pompa Pornita");
         Serial.println("1Pompa Pornita");
         pumpState = 1;
+        pumpStartedByButton = 1;
       }
     }
   }
   else if(transitionToLow == true)
   {
     transitionToLow = false;
+    pumpStartedByButton = 0;
     if(pumpState == 1)
     {
       digitalWrite(pumpPin, HIGH);
@@ -342,7 +347,8 @@ void loop() {
       pumpState = 0;
     }
   }
-  
+
+  /*Next check will determine if the pump has been running on it's own for more than 30 minutes and will shut it off as a failsafe*/
   if(pumpState == 1)
   {
     unsigned long now = millis();
@@ -354,11 +360,11 @@ void loop() {
       pumpState = 0;
       onTime = 0;
       stopTime = 0;
+      if(pumpStartedByButton == 1){
+        pumpStartedByButton = 0; //clear flag so that wifi disconnection can stop te pump in the future
+      }
     }
   }
   /*take a break for 1 second*/
   //delay(1000);
-  #if useWdt
-  ESP.wdtFeed();
-  #endif
 }
