@@ -28,6 +28,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/*Functinality switches here*/
+#define useWdt 1
+
+
+/*Ok, let's start!*/
+#if useWdt
+EspClass ESPClass;
+unsigned char WdtStart = 0;
+unsigned long wdtTimeVal = 0;
+#endif
+
 // Update these with values suitable for your network.
 //const char* ssid = "Tenda_828F60";
 //const char* password = "headtable315";
@@ -67,6 +78,7 @@ unsigned short Pic_getCurrent(void)
       maxValue = sensorValue;
     }
     delay(1);
+    ESPClass.wdtFeed();
   }
   x=((float)(maxValue*3300)/1023);
   return ((unsigned short)x);
@@ -166,6 +178,13 @@ void callback(char* topic, byte* payload, unsigned int length) {
     itoa(Current_n, cstr, 10);
     client.publish("/Pump/StatusC", cstr);
   }
+#if useWdt
+  else if(strcmp(topic,"WatchdogFeed")==0)
+  {
+    wdtTimeVal = millis(); /*Store the time of the last Wdt trigger*/
+    WdtStart = 1;
+  }
+#endif
 }
 
 void reconnect() {
@@ -188,6 +207,7 @@ void reconnect() {
       client.subscribe("/Pump/Control");
       client.subscribe("/Pump/Query");
       client.subscribe("/Pump/QueryC");
+      client.subscribe("WatchdogFeed");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -261,7 +281,22 @@ void loop() {
     pumpState = 0;
     setup_wifi();
   }
-
+  /*Watchdog functioanlity*/
+  #if useWdt
+  if(WdtStart == 1)
+  {
+    unsigned long wdtNow;
+    wdtNow = millis();
+    if(wdtNow>wdtTimeVal)
+    {
+      if((wdtNow - wdtTimeVal)>10000)
+      {
+        ESPClass.wdtDisable();
+        while(1) {}; /*Endless loop to trigger a reset*/
+      }
+    }
+  }
+  #endif
   checkButton();
   if(transitionToHigh == true)
   {
@@ -323,4 +358,7 @@ void loop() {
   }
   /*take a break for 1 second*/
   //delay(1000);
+  #if useWdt
+  ESP.wdtFeed();
+  #endif
 }
