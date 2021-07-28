@@ -63,6 +63,7 @@ int pumpPin = 4;  //D2
 int pumpPin1 = 0; //D3
 #if useMotorValve
 int ValveOut = 5; //D1
+unsigned char ValvePosition = 0;
 #endif
 const int analogInPin = A0;
 int buttonPin = 12;
@@ -73,7 +74,8 @@ bool buttonState;
 void SwitchValveOff(void)
 {
   /*Set Relay to OFF position*/
-  digitalWrite(ValveOut, LOW);
+  digitalWrite(ValveOut, HIGH);
+  ValvePosition = 0;
   /*Take a break for 15 seconds*/
   delay(15000);
 }
@@ -81,7 +83,8 @@ void SwitchValveOff(void)
 void SwitchValveOn(void)
 {
   /*Set Relay to ON position*/
-  digitalWrite(ValveOut, HIGH);
+  digitalWrite(ValveOut, LOW);
+  ValvePosition = 1;
   /*Take a break for 15 seconds*/
   delay(15000);
 }
@@ -216,13 +219,13 @@ void callback(char* topic, byte* payload, unsigned int length) {
     {
       client.publish("/Valve/Status", "Se deschide");
       SwitchValveOn();
-      client.publish("/Valve/Status", "Deschisa";
+      client.publish("/Valve/Status", "Deschisa");
     }
     else if ((char)payload[0] == '0')
     {
       client.publish("/Valve/Status", "Se inchide");
       SwitchValveOff();
-      client.publish("/Valve/Status", "Inchisa";
+      client.publish("/Valve/Status", "Inchisa");
     }
   }
 #endif
@@ -252,14 +255,14 @@ void reconnect() {
       client.subscribe("WatchdogFeed");
       #endif
       #if useMotorValve
-      client.subscribe("/Valve/Control")
+      client.subscribe("/Valve/Control");
       #endif
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
+      Serial.println(" try again in a second");
+      // Wait 1 second before retrying
+      delay(1000);
     }
   }
 }
@@ -366,9 +369,19 @@ void loop() {
         stopTime = 0;
         pumpState = 0;
         pumpStartedByButton = 0;
+        #if useMotorValve
+        SwitchValveOff();
+        #endif
       }
       else
       {
+        /*Check Valve position*/
+        #if useMotorValve
+        if (ValvePosition == 0)
+        {
+          SwitchValveOn();
+        }
+        #endif
         /*Switch pump on*/
         digitalWrite(pumpPin, LOW);
         digitalWrite(pumpPin1, LOW);
@@ -392,6 +405,13 @@ void loop() {
       onTime = 0;
       stopTime = 0;
       pumpState = 0;
+      /*Check Valve position*/
+      #if useMotorValve
+      if (ValvePosition == 1)
+      {
+        SwitchValveOff();
+      }
+      #endif
     }
   }
 
@@ -407,6 +427,13 @@ void loop() {
       pumpState = 0;
       onTime = 0;
       stopTime = 0;
+      /*Check Valve position*/
+      #if useMotorValve
+      if (ValvePosition == 1)
+      {
+        SwitchValveOff();
+      }
+      #endif
       if(pumpStartedByButton == 1){
         pumpStartedByButton = 0; //clear flag so that wifi disconnection can stop te pump in the future
       }
