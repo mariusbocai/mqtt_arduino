@@ -30,6 +30,7 @@
 
 /*Functinality switches here*/
 #define useWdt 1
+#define useMotorValve 1
 
 
 /*Ok, let's start!*/
@@ -58,12 +59,33 @@ PubSubClient client(espClient);
 unsigned long stopTime = 0;
 unsigned long onTime = 0;
 unsigned char pumpState,pumpStartedByButton;
-int pumpPin = 4;
-int pumpPin1 = 0;
+int pumpPin = 4;  //D2
+int pumpPin1 = 0; //D3
+#if useMotorValve
+int ValveOut = 5; //D1
+#endif
 const int analogInPin = A0;
 int buttonPin = 12;
 unsigned char transitionToHigh, transitionToLow;
 bool buttonState;
+
+#if useMotorValve
+void SwitchValveOff(void)
+{
+  /*Set Relay to OFF position*/
+  digitalWrite(ValveOut, LOW);
+  /*Take a break for 15 seconds*/
+  delay(15000);
+}
+
+void SwitchValveOn(void)
+{
+  /*Set Relay to ON position*/
+  digitalWrite(ValveOut, HIGH);
+  /*Take a break for 15 seconds*/
+  delay(15000);
+}
+#endif
 
 unsigned short Pic_getCurrent(void)
 {
@@ -187,6 +209,23 @@ void callback(char* topic, byte* payload, unsigned int length) {
     WdtStart = 1;
   }
 #endif
+#if useMotorValve
+  else if(strcmp(topic,"/Valve/Control")==0)
+  {
+    if ((char)payload[0] == '1')
+    {
+      client.publish("/Valve/Status", "Se deschide");
+      SwitchValveOn();
+      client.publish("/Valve/Status", "Deschisa";
+    }
+    else if ((char)payload[0] == '0')
+    {
+      client.publish("/Valve/Status", "Se inchide");
+      SwitchValveOff();
+      client.publish("/Valve/Status", "Inchisa";
+    }
+  }
+#endif
 }
 
 void reconnect() {
@@ -209,7 +248,12 @@ void reconnect() {
       client.subscribe("/Pump/Control");
       client.subscribe("/Pump/Query");
       client.subscribe("/Pump/QueryC");
+      #if useWdt
       client.subscribe("WatchdogFeed");
+      #endif
+      #if useMotorValve
+      client.subscribe("/Valve/Control")
+      #endif
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -224,6 +268,9 @@ void setup() {
   pinMode(pumpPin, OUTPUT);     // Initialize the BUILTIN_LED pin as an output
   pinMode(pumpPin1, OUTPUT);
   pinMode(buttonPin, INPUT);
+  #if useMotorValve
+  pinMode(ValveOut, OUTPUT);
+  #endif
   digitalWrite(pumpPin, HIGH); //set pump OFF
   digitalWrite(pumpPin1, HIGH);
   pinMode(BUILTIN_LED, OUTPUT);
