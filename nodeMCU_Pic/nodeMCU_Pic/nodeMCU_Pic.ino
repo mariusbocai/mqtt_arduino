@@ -29,8 +29,9 @@
 #include <stdlib.h>
 
 /*Functinality switches here*/
-#define useWdt 1
-#define useMotorValve 1
+#define useWdt 0
+#define useMotorValve 0
+
 
 
 /*Ok, let's start!*/
@@ -48,7 +49,7 @@ unsigned long wdtTimeVal = 0;
 //const char* password = "SolariileMaAn";
 //const char* ssid = "GardeNet1";
 //const char* password = "SolariileMaAn1";
-const char* ssid = "GardeNet2";
+const char* ssid = "Gardenet2";
 const char* password = "SolariileMaAn2";
 //const char* ssid = "Tenda_2EC6E0";
 //const char* password = "gamechair955";
@@ -105,7 +106,9 @@ unsigned short Pic_getCurrent(void)
       maxValue = sensorValue;
     }
     delay(1);
+    #if useWdt
     ESPClass.wdtFeed();
+    #endif
   }
   x=((float)(maxValue*3300)/1023);
   return ((unsigned short)x);
@@ -343,6 +346,7 @@ void loop() {
     {
       if((wdtNow - wdtTimeVal)>10000)
       {
+        Serial.println("Opresc WDT");
         ESPClass.wdtDisable();
         while(1) {}; /*Endless loop to trigger a reset*/
       }
