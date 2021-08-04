@@ -73,20 +73,38 @@ bool buttonState;
 #if useMotorValve
 void SwitchValveOff(void)
 {
+  unsigned char i;
   /*Set Relay to OFF position*/
   digitalWrite(ValveOut, HIGH);
   ValvePosition = 0;
   /*Take a break for 15 seconds*/
+  #if useWdt
+  for (i = 0; i<15; i++)
+  {
+    delay(1000);
+    ESPClass.wdtFeed();
+  }
+  #else
   delay(15000);
+  #endif
 }
 
 void SwitchValveOn(void)
 {
+  unsigned char i;
   /*Set Relay to ON position*/
   digitalWrite(ValveOut, LOW);
   ValvePosition = 1;
   /*Take a break for 15 seconds*/
+  #if useWdt
+  for (i = 0; i<15; i++)
+  {
+    delay(1000);
+    ESPClass.wdtFeed();
+  }
+  #else
   delay(15000);
+  #endif
 }
 #endif
 
@@ -233,9 +251,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 void reconnect() {
   /*For safety reasons, switch pump off in case there is no MQTT connection available*/
-  digitalWrite(pumpPin, HIGH); //set pump OFF
-  digitalWrite(pumpPin1, HIGH);
-  pumpState = 0;
+  if((pumpStartedByButton == 0)
+  {
+    digitalWrite(pumpPin, HIGH); //set pump OFF
+    digitalWrite(pumpPin1, HIGH);
+    pumpState = 0;
+  }
   // Loop until we're reconnected
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
