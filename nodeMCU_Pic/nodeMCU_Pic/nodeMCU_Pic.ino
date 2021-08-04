@@ -251,7 +251,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 void reconnect() {
   /*For safety reasons, switch pump off in case there is no MQTT connection available*/
-  if((pumpStartedByButton == 0)
+  if(pumpStartedByButton == 0)
   {
     digitalWrite(pumpPin, HIGH); //set pump OFF
     digitalWrite(pumpPin1, HIGH);
