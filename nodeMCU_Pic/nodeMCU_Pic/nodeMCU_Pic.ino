@@ -29,9 +29,8 @@
 #include <stdlib.h>
 
 /*Functinality switches here*/
-#define useWdt 0
-#define useMotorValve 0
-
+#define useWdt 1
+#define useMotorValve 1
 
 
 /*Ok, let's start!*/
@@ -49,7 +48,7 @@ unsigned long wdtTimeVal = 0;
 //const char* password = "SolariileMaAn";
 //const char* ssid = "GardeNet1";
 //const char* password = "SolariileMaAn1";
-const char* ssid = "Gardenet2";
+const char* ssid = "GardeNet2";
 const char* password = "SolariileMaAn2";
 //const char* ssid = "Tenda_2EC6E0";
 //const char* password = "gamechair955";
@@ -74,20 +73,38 @@ bool buttonState;
 #if useMotorValve
 void SwitchValveOff(void)
 {
+  unsigned char i;
   /*Set Relay to OFF position*/
   digitalWrite(ValveOut, HIGH);
   ValvePosition = 0;
   /*Take a break for 15 seconds*/
+  #if useWdt
+  for (i = 0; i<15; i++)
+  {
+    delay(1000);
+    ESPClass.wdtFeed();
+  }
+  #else
   delay(15000);
+  #endif
 }
 
 void SwitchValveOn(void)
 {
+  unsigned char i;
   /*Set Relay to ON position*/
   digitalWrite(ValveOut, LOW);
   ValvePosition = 1;
   /*Take a break for 15 seconds*/
+  #if useWdt
+  for (i = 0; i<15; i++)
+  {
+    delay(1000);
+    ESPClass.wdtFeed();
+  }
+  #else
   delay(15000);
+  #endif
 }
 #endif
 
@@ -106,9 +123,7 @@ unsigned short Pic_getCurrent(void)
       maxValue = sensorValue;
     }
     delay(1);
-    #if useWdt
     ESPClass.wdtFeed();
-    #endif
   }
   x=((float)(maxValue*3300)/1023);
   return ((unsigned short)x);
@@ -236,9 +251,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 void reconnect() {
   /*For safety reasons, switch pump off in case there is no MQTT connection available*/
-  digitalWrite(pumpPin, HIGH); //set pump OFF
-  digitalWrite(pumpPin1, HIGH);
-  pumpState = 0;
+  if((pumpStartedByButton == 0)
+  {
+    digitalWrite(pumpPin, HIGH); //set pump OFF
+    digitalWrite(pumpPin1, HIGH);
+    pumpState = 0;
+  }
   // Loop until we're reconnected
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
@@ -346,7 +364,6 @@ void loop() {
     {
       if((wdtNow - wdtTimeVal)>10000)
       {
-        Serial.println("Opresc WDT");
         ESPClass.wdtDisable();
         while(1) {}; /*Endless loop to trigger a reset*/
       }
