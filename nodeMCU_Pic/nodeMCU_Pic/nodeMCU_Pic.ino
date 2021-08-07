@@ -29,7 +29,7 @@
 #include <stdlib.h>
 
 /*Functinality switches here*/
-#define useWdt 1
+#define useWdt 0
 #define useMotorValve 1
 
 
@@ -62,7 +62,7 @@ unsigned char pumpState,pumpStartedByButton;
 int pumpPin = 4;  //D2
 int pumpPin1 = 0; //D3
 #if useMotorValve
-int ValveOut = 5; //D1
+int ValveOut = 2; //D4
 unsigned char ValvePosition = 0;
 #endif
 const int analogInPin = A0;
@@ -108,6 +108,22 @@ void SwitchValveOn(void)
 }
 #endif
 
+inline void switchPumpOn(void)
+{
+  /*Switch pump on*/
+  digitalWrite(pumpPin, LOW);
+  delay(10);
+  digitalWrite(pumpPin1, LOW);
+}
+inline void switchPumpOff(void)
+{
+  /*Switch pump off*/
+  digitalWrite(pumpPin, HIGH);
+  delay(10);
+  digitalWrite(pumpPin1, HIGH);
+
+}
+
 unsigned short Pic_getCurrent(void)
 {
   unsigned short sensorValue, maxValue;
@@ -123,7 +139,9 @@ unsigned short Pic_getCurrent(void)
       maxValue = sensorValue;
     }
     delay(1);
+    #if useWdt
     ESPClass.wdtFeed();
+    #endif
   }
   x=((float)(maxValue*3300)/1023);
   return ((unsigned short)x);
@@ -172,8 +190,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       if(stopTime < onTime)
       {
         /*Counter Overflow, stop pump as countdown timer is broken*/
-        digitalWrite(pumpPin, HIGH);
-        digitalWrite(pumpPin1, HIGH);
+        switchPumpOff();
         client.publish("/Pump/Status", "0Pompa Oprita");
         Serial.println("0Pompa Oprita");
         onTime = 0;
@@ -183,8 +200,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       else
       {
         /*Switch pump on*/
-        digitalWrite(pumpPin, LOW);
-        digitalWrite(pumpPin1, LOW);
+        switchPumpOn();
         client.publish("/Pump/Status", "1Pompa Pornita");
         Serial.println("1Pompa Pornita");
         pumpState = 1;
@@ -192,8 +208,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     }
     else
     {
-      digitalWrite(pumpPin, HIGH);
-      digitalWrite(pumpPin1, HIGH);
+      switchPumpOff();
       client.publish("/Pump/Status", "0Pompa Oprita");
       Serial.println("0Pompa Oprita");
       onTime = 0;
@@ -253,8 +268,7 @@ void reconnect() {
   /*For safety reasons, switch pump off in case there is no MQTT connection available*/
   if(pumpStartedByButton == 0)
   {
-    digitalWrite(pumpPin, HIGH); //set pump OFF
-    digitalWrite(pumpPin1, HIGH);
+    switchPumpOff();
     pumpState = 0;
   }
   // Loop until we're reconnected
@@ -295,8 +309,7 @@ void setup() {
   #if useMotorValve
   pinMode(ValveOut, OUTPUT);
   #endif
-  digitalWrite(pumpPin, HIGH); //set pump OFF
-  digitalWrite(pumpPin1, HIGH);
+  switchPumpOff();
   pinMode(BUILTIN_LED, OUTPUT);
   digitalWrite(BUILTIN_LED, HIGH);
   Serial.begin(115200);
@@ -347,8 +360,7 @@ void loop() {
   if ((WiFi.status() != WL_CONNECTED) && (pumpStartedByButton == 0))
   {
     /*If there is no WiFi available, switch off the pump*/
-    digitalWrite(pumpPin, HIGH); //set pump OFF
-    digitalWrite(pumpPin1, HIGH);
+    switchPumpOff();
     onTime = 0;
     stopTime = 0;
     pumpState = 0;
@@ -382,8 +394,7 @@ void loop() {
       if(stopTime < onTime)
       {
         /*Counter Overflow, stop pump as countdown timer is broken*/
-        digitalWrite(pumpPin, HIGH);
-        digitalWrite(pumpPin1, HIGH);
+        switchPumpOff();
         client.publish("/Pump/Status", "0Pompa Oprita");
         Serial.println("0Pompa Oprita");
         onTime = 0;
@@ -404,8 +415,7 @@ void loop() {
         }
         #endif
         /*Switch pump on*/
-        digitalWrite(pumpPin, LOW);
-        digitalWrite(pumpPin1, LOW);
+        switchPumpOn();
         client.publish("/Pump/Status", "1Pompa Pornita");
         Serial.println("1Pompa Pornita");
         pumpState = 1;
@@ -419,8 +429,7 @@ void loop() {
     pumpStartedByButton = 0;
     if(pumpState == 1)
     {
-      digitalWrite(pumpPin, HIGH);
-      digitalWrite(pumpPin1, HIGH);
+      switchPumpOff();
       client.publish("/Pump/Status", "0Pompa Oprita");
       Serial.println("0Pompa Oprita");
       onTime = 0;
@@ -443,8 +452,7 @@ void loop() {
     if (now > stopTime)
     {
       /*Pump has been running for 30 minutes, it's time to stop now*/
-      digitalWrite(pumpPin, HIGH); //set pump OFF
-      digitalWrite(pumpPin1, HIGH);
+      switchPumpOff();
       pumpState = 0;
       onTime = 0;
       stopTime = 0;
