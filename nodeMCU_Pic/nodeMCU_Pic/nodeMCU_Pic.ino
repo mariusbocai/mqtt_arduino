@@ -269,6 +269,7 @@ void reconnect() {
   if(pumpStartedByButton == 0)
   {
     switchPumpOff();
+    SwitchValveOff();
     pumpState = 0;
   }
   // Loop until we're reconnected
@@ -308,6 +309,7 @@ void setup() {
   pinMode(buttonPin, INPUT);
   #if useMotorValve
   pinMode(ValveOut, OUTPUT);
+  SwitchValveOff();
   #endif
   switchPumpOff();
   pinMode(BUILTIN_LED, OUTPUT);
@@ -353,19 +355,29 @@ void checkButton()
 }
 void loop() {
 
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
+
+  
   if ((WiFi.status() != WL_CONNECTED) && (pumpStartedByButton == 0))
   {
     /*If there is no WiFi available, switch off the pump*/
+   if(pumpStartedByButton == 0)
+   {
     switchPumpOff();
+    SwitchValveOff();
     onTime = 0;
     stopTime = 0;
     pumpState = 0;
-    setup_wifi();
+   }
+   setup_wifi();
   }
+  else
+  {
+    if (!client.connected()) 
+    {
+      reconnect();
+    }
+  }
+  client.loop();
   /*Watchdog functioanlity*/
   #if useWdt
   if(WdtStart == 1)
