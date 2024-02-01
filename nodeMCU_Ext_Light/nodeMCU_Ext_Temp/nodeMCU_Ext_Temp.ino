@@ -10,7 +10,8 @@
 
 
 const char* ssid = "GardeNet2";
-const char* password = "***********";
+const char* password = "FuckUBoy";
+#error "No Pass set"
 const char* mqtt_server = "192.168.0.79";
 
 WiFiClient espClient;
@@ -102,6 +103,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
         Serial.println("Bec Ext stins");
         lightState = 0;
      }
+}
 }
 
 void reconnect() {
