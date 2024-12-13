@@ -7,6 +7,8 @@
 #include <stdlib.h>
 
 
+#define LightOnDelayTime 600000
+
 const char* ssid = "GardeNet2";
 const char* password = "WazzupDoc";
 #error "No Pass set"
@@ -34,6 +36,7 @@ sensors_event_t event;
 
 int lightPin = 4;
 int lightPinRed = 5;
+unsigned long lightSwitchOnTime = 0;
 unsigned char lightState;
 
 void setup_wifi() {
@@ -160,6 +163,7 @@ void setup() {
   //Start with the Light switched on
   digitalWrite(lightPin, LOW);
   digitalWrite(lightPinRed, LOW);
+  lightSwitchOnTime = millis();
   Serial.begin(9600); // Starts the serial communication
   setup_wifi();
   client.setServer(mqtt_server, 1883);
@@ -178,5 +182,12 @@ void loop() {
         reconnect();
      }
      client.loop();
+     if((lightState == 1)&&(millis() > ((unsigned long)(lightSwitchOnTime + LightOnDelayTime))))
+     {
+      /*After 10 minutes, shut down the light*/
+      lightState = 0;
+      digitalWrite(lightPin, HIGH);
+      digitalWrite(lightPinRed, HIGH);
+     }
   }
 }
